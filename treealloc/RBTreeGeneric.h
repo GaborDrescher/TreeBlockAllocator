@@ -594,7 +594,7 @@ class RBTreeGeneric
 	{
 		T *parent;
 		if((node->*nodeMember).right) {
-			node = (node->*nodeMember).right; 
+			node = (node->*nodeMember).right;
 			while((node->*nodeMember).left) {
 				node=(node->*nodeMember).left;
 			}
@@ -611,7 +611,7 @@ class RBTreeGeneric
 	{
 		T *parent;
 		if((node->*nodeMember).left) {
-			node = (node->*nodeMember).left; 
+			node = (node->*nodeMember).left;
 			while((node->*nodeMember).right) {
 				node=(node->*nodeMember).right;
 			}

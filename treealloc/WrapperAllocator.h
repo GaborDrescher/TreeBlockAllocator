@@ -5,6 +5,8 @@
 // directly
 
 #include <inttypes.h>
+#include <string.h> // memcpy
+#include "kassert.h"
 
 namespace os {
 namespace res {
@@ -34,7 +36,7 @@ class WrapperAllocator
 				sum ^= ~((uintptr_t)(0xBADC0DED));
 				return sum;
 			}
-			
+
 			public:
 			bool applyCanary()
 			{
@@ -50,6 +52,12 @@ class WrapperAllocator
 		#endif
 	};
 
+	static uintptr_t alignUp(uintptr_t numToRound, uintptr_t multiple)
+	{
+		uintptr_t mask = multiple - 1;
+	    return (numToRound + mask) & ~mask;
+	}
+
 	public:
 	uintptr_t overhead() const
 	{
@@ -60,8 +68,9 @@ class WrapperAllocator
 	{
 		kassert(size != 0);
 
-		const uintptr_t blockSize = BlockAllocator::getBlockSize();
-		const uintptr_t nBlocks = lib::algo::divideRoundUp(size + sizeof(MemHeader), blockSize);
+		const uintptr_t blockBits = BlockAllocator::getBlockBits();
+		const uintptr_t blockSize = ((uintptr_t)1) << blockBits;
+		const uintptr_t nBlocks = alignUp(size + sizeof(MemHeader), blockSize) >> blockBits;
 		const uintptr_t rawMem = (uintptr_t)BlockAllocator::alloc(nBlocks);
 
 		if(rawMem == 0) {
@@ -80,10 +89,10 @@ class WrapperAllocator
 	void* writeAlignedHeader(uintptr_t alignment, void *rawMem, uintptr_t size)
 	{
 		uintptr_t chunk = (uintptr_t)rawMem;
-		uintptr_t nBlocks = size / BlockAllocator::getBlockSize();
+		uintptr_t nBlocks = size >> BlockAllocator::getBlockBits();
 
 		// this will be the address to return
-		const uintptr_t alignedChunk = lib::algo::roundUp(chunk + sizeof(MemHeader), alignment);
+		const uintptr_t alignedChunk = alignUp(chunk + sizeof(MemHeader), alignment);
 
 		// write the header
 		MemHeader *header = (MemHeader*)(alignedChunk - sizeof(MemHeader));
@@ -107,10 +116,11 @@ class WrapperAllocator
 			return alloc(size);
 		}
 
-		const uintptr_t blockSize = BlockAllocator::getBlockSize();
+		const uintptr_t blockBits = BlockAllocator::getBlockBits();
+		const uintptr_t blockSize = ((uintptr_t)1) << blockBits;
 
-		const uintptr_t nBlocks = lib::algo::divideRoundUp(size +
-			sizeof(MemHeader) + (alignment - 1), blockSize);
+		const uintptr_t nBlocks = alignUp(size +
+			sizeof(MemHeader) + (alignment - 1), blockSize) >> blockBits;
 
 		const uintptr_t chunk = (uintptr_t)BlockAllocator::alloc(nBlocks);
 		if(chunk == 0) {
@@ -134,7 +144,8 @@ class WrapperAllocator
 		MemHeader *header = ((MemHeader*)ptr) - 1;
 		kassert(header->checkCanary());
 
-		const uintptr_t blockSize = BlockAllocator::getBlockSize();
+		const uintptr_t blockBits = BlockAllocator::getBlockBits();
+		const uintptr_t blockSize = ((uintptr_t)1) << blockBits;
 
 		// end of this memory chunk
 		const uintptr_t end = header->start + header->blocks * blockSize;
@@ -146,7 +157,7 @@ class WrapperAllocator
 			// new size is larger than the available space
 			// grow the region in place, if possible
 			const uintptr_t additionalBytes = size - oldSize;
-			const uintptr_t additionalBlocks = lib::algo::divideRoundUp(additionalBytes, blockSize);
+			const uintptr_t additionalBlocks = alignUp(additionalBytes, blockSize) >> blockBits;
 			if(BlockAllocator::grow((void*)(header->start), header->blocks, header->blocks + additionalBlocks)) {
 				// success, we could grow the region in-place
 				header->blocks += additionalBlocks;
@@ -160,7 +171,7 @@ class WrapperAllocator
 			if(mem == 0) {
 				return 0;
 			}
-			lib::copy<uint8_t>(mem, ptr, oldSize);
+			memcpy(mem, ptr, oldSize);
 			this->free(ptr);
 
 			return mem;
@@ -171,7 +182,7 @@ class WrapperAllocator
 		const uintptr_t unneededBytes = oldSize - size;
 		if(unneededBytes > blockSize) {
 			// if at least one full block is free, give it/them back
-			const uintptr_t unneededBlocks = lib::algo::divideRoundDown(unneededBytes, blockSize);
+			const uintptr_t unneededBlocks = unneededBytes >> blockBits;
 			const uintptr_t newEnd = end - unneededBlocks * blockSize;
 			BlockAllocator::free((void*)newEnd, unneededBlocks);
 
@@ -201,7 +212,7 @@ class WrapperAllocator
 		uintptr_t blockStart = header->start;
 		uintptr_t overheadBytes = userStart - blockStart;
 
-		uintptr_t totalSize = header->blocks * BlockAllocator::getBlockSize();
+		uintptr_t totalSize = header->blocks << BlockAllocator::getBlockBits();
 		uintptr_t userSize = totalSize - overheadBytes;
 		return userSize;
 	}

@@ -2,19 +2,19 @@
 // The following operations run in O(log(N)) worst-case time:
 // search, ceil, floor, min, max, insert, remove, prev and next
 // Nodes with the same key are not allowed, insert will return the old item in this case.
-// To remove a node based on its key, use: obj = search(key); remove(obj); 
-// 
+// To remove a node based on its key, use: obj = search(key); remove(obj);
+//
 // It is recommended to encapsulate this class if it is OK for you to use
 // dynamic memory allocation. Nevertheless, here is a direct-usage example that maps
 // unsigned integers to const char*
-// 
+//
 //    struct UIntNode
 //    {
 //        lib::adt::RBNode<UIntNode> mynode;
 //        unsigned int key;
 //        const char *data;
 //    };
-//    
+//
 //    struct UintComp
 //    {
 //        static int cmp(unsigned int k, UIntNode *other)
@@ -23,7 +23,7 @@
 //            if(k > other->key) return  1;
 //            return 0;
 //        }
-//        
+//
 //        static int cmp(UIntNode *a, UIntNode *b)
 //        {
 //            if(a->key < b->key) return -1;

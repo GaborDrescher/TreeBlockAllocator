@@ -1,8 +1,9 @@
 #ifndef   OS_RES_TREE_BLOCK_ALLOCATOR
 #define   OS_RES_TREE_BLOCK_ALLOCATOR
 
-#include <inttypes.h>
+#include <inttypes.h> // uintptr_t
 #include "RBTree.h"
+#include "kassert.h"
 
 namespace os {
 namespace res {
@@ -140,13 +141,13 @@ class TreeBlockAllocatorGeneric
 	uintptr_t contChunks;
 
 	public:
-	uintptr_t getBlockSize() const
+	uintptr_t getBlockBits() const
 	{
-		return ((uintptr_t)1) << BLOCK_BITS;
+		return BLOCK_BITS;
 	}
 
 	private:
-	static uintptr_t alignUp(uintptr_t numToRound, uintptr_t multiple) 
+	static uintptr_t alignUp(uintptr_t numToRound, uintptr_t multiple)
 	{
 		uintptr_t mask = multiple - 1;
 	    return (numToRound + mask) & ~mask;
@@ -269,7 +270,7 @@ class TreeBlockAllocatorGeneric
 		uintptr_t trailingBlocksStart = alignedChunk + allocSize;
 		uintptr_t trailingSize = blockEnd - trailingBlocksStart;
 		uintptr_t trailingBlocks = trailingSize >> BLOCK_BITS;
-		
+
 		// if there are some leading blocks then the start address does not
 		// change, so do not remove the old free block from the address tree
 		if(leadingBlocks != 0) {
@@ -419,7 +420,7 @@ class TreeBlockAllocatorGeneric
 			return nullptr;
 		}
 
-		if(alignment <= getBlockSize()) {
+		if(alignment <= (((uintptr_t)1) << BLOCK_BITS)) {
 			return alloc(blocks);
 		}
 
@@ -430,7 +431,7 @@ class TreeBlockAllocatorGeneric
 
 		// allocate (blocks + alignment - 1) blocks
 		uintptr_t extraBlocks = (alignment >> BLOCK_BITS) - 1;
-		
+
 		// look for this size to allocate
 		uintptr_t size = (blocks + extraBlocks) << BLOCK_BITS;
 
@@ -518,7 +519,7 @@ class TreeBlockAllocatorGeneric
 			pred = addrTree.prev(succ);
 		}
 		else {
-			// if there is no successor, search for the predecessor 
+			// if there is no successor, search for the predecessor
 			pred = addrTree.floor(start);
 		}
 
